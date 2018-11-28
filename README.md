@@ -215,39 +215,29 @@ The occupancy grids can be converted to meshes for visualization using
 
     python ../examples/occ_to_off.py ../examples/filled.h5 ../examples/output/
 
-
 ## License
 
-Check:
+License for source code corresponding to:
+
+D. Stutz, A. Geiger. **Learning 3D Shape Completion from Laser Scan Data with Weak Supervision.** IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2018.
+
+Note that the source code is based on the following projects for which separate licenses apply:
 
 * [christopherbatty/SDFGen](https://github.com/christopherbatty/SDFGen)
 * [ray-triangle intersection](http://fileadmin.cs.lth.se/cs/personal/tomas_akenine-moller/raytri/)
 * [box-triangle intersection](http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/)
+* [Tronic/cmake-modules](https://github.com/Tronic/cmake-modules).
 
-The remaining code is licensed as follows:
+Copyright (c) 2018 David Stutz, Max-Planck-Gesellschaft
 
-Copyright (c) 2018 David Stutz
+**Please read carefully the following terms and conditions and any accompanying documentation before you download and/or use this software and associated documentation files (the "Software").**
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+The authors hereby grant you a non-exclusive, non-transferable, free of charge right to copy, modify, merge, publish, distribute, and sublicense the Software for the sole purpose of performing non-commercial scientific research, non-commercial education, or non-commercial artistic projects.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Any other use, in particular any use for commercial purposes, is prohibited. This includes, without limitation, incorporation in a commercial product, use in a commercial service, or production of other artefacts for commercial purposes.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-_Note that this license does not include `triangle_ray`, see
-[here](http://fileadmin.cs.lth.se/cs/personal/tomas_akenine-moller/raytri/)
-for license information, `triangle_point`, see `triangle_point/README.md` for 
-license information, and `box_triangle`, see [here](http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/)
-for license information._ Also check [Tronic/cmake-modules](https://github.com/Tronic/cmake-modules).
+You understand and agree that the authors are under no obligation to provide either maintenance services, update services, notices of latent defects, or corrections of defects with regard to the Software. The authors nevertheless reserve the right to update, modify, or discontinue the Software at any time.
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. You agree to cite the corresponding papers (see above) in documents and papers that report on research using the Software.
