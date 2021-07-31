@@ -54,19 +54,19 @@ bool read_hdf5_rank4(const std::string filepath, Eigen::Tensor<float, 4, Eigen::
 
   // catch failure caused by the H5File operations
   catch(H5::FileIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
   // catch failure caused by the DataSet operations
   catch(H5::DataSetIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
   // catch failure caused by the DataSpace operations
   catch(H5::DataSpaceIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
@@ -115,19 +115,19 @@ bool read_hdf5_rank5(const std::string filepath, Eigen::Tensor<float, 5, Eigen::
 
   // catch failure caused by the H5File operations
   catch(H5::FileIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
   // catch failure caused by the DataSet operations
   catch(H5::DataSetIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
   // catch failure caused by the DataSpace operations
   catch(H5::DataSpaceIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 

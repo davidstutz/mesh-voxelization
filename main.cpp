@@ -451,25 +451,25 @@ bool write_float_hdf5(const std::string filepath, Eigen::Tensor<float, RANK, Eig
 
   // catch failure caused by the H5File operations
   catch(H5::FileIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
   // catch failure caused by the DataSet operations
   catch(H5::DataSetIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
   // catch failure caused by the DataSpace operations
   catch(H5::DataSpaceIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
   // catch failure caused by the DataSpace operations
   catch(H5::DataTypeIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
@@ -537,25 +537,25 @@ bool write_int_hdf5(const std::string filepath, Eigen::Tensor<int, RANK, Eigen::
 
   // catch failure caused by the H5File operations
   catch(H5::FileIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
   // catch failure caused by the DataSet operations
   catch(H5::DataSetIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
   // catch failure caused by the DataSpace operations
   catch(H5::DataSpaceIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 
   // catch failure caused by the DataSpace operations
   catch(H5::DataTypeIException error) {
-    error.printError();
+    error.printErrorStack();
     return false;
   }
 

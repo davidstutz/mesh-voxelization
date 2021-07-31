@@ -11,9 +11,8 @@ include(LibFindMacros)
 find_path(EIGEN3_INCLUDE_DIR
   NAMES signature_of_eigen3_matrix_library
   PATHS
-  /usr/local/include
+  /usr/local/include/
   PATH_SUFFIXES eigen3
-  NO_CMAKE_SYSTEM_PATH
 )
 
 # Set the include dir variables and the libraries and let libfind_process do the rest.
