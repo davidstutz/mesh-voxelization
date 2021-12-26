@@ -74,7 +74,8 @@ if __name__ == '__main__':
         labels, num_labels = morphology.label(occupancy[n], background=1, connectivity=1, return_num=True)
         outside_label = labels[0][0][0]
 
-        filled[n][labels != outside_label] = 1
+        filled[n][labels != outside_label] = 1 
+        filled[n][occupancy[n] != 0] = occupancy[n][occupancy[n] != 0] #in case color is used and should be preserved (inside then will be in color of the 1st face)
         # filled[n][labels == outside_label] = 0
 
         print('Filled %d.' % n)
