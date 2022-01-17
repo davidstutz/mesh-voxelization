@@ -123,11 +123,12 @@ public:
 
   /** \brief Reading an off file and returning the vertices x, y, z coordinates and the
    * face indices.
-   * \param[in] filepath path to the OFF file
+   * \param[in] filepath path to the OFF file 
    * \param[out] mesh read mesh with vertices and faces
+   * \param[in] usecolor whether OFF file contains colors of faces
    * \return success
    */
-  static bool from_off(const std::string filepath, Mesh& mesh) {
+  static bool from_off(const std::string filepath, Mesh& mesh, bool usecolor) {
 
     std::ifstream* file = new std::ifstream(filepath.c_str());
     std::string line;
@@ -187,11 +188,24 @@ public:
       }
 
       Eigen::Vector3i face;
+      Eigen::Vector3i color;
+      color.setZero();
+
+      //std::cout << "Empty color vector: " << color(0) <<  " " << color(1) << " " << color(2) << std::endl;
+
       ss >> face(0);
       ss >> face(1);
       ss >> face(2);
 
+      if (usecolor == true){
+        ss >> color(0);
+        ss >> color(1);
+        ss >> color(2);
+      };
+      //std::cout << "Color vector after reading line: " << color(0) <<  " " << color(1) << " " << color(2) << std::endl;
+
       mesh.add_face(face);
+      mesh.add_color(color);
     }
 
     if (n_vertices != mesh.num_vertices()) {
@@ -229,6 +243,10 @@ public:
 
     for (unsigned int f = 0; f < this->num_faces(); f++) {
       (*out) << "3 " << this->faces[f](0) << " " << this->faces[f](1) << " " << this->faces[f](2) << std::endl;
+      /* if colors
+      (*out) << "3 " << this->faces[f](0)  << " " << this->faces[f](1)  << " " << this->faces[f](2)  << 
+                 " " << this->colors[f](0) << " " << this->colors[f](1) << " " << this->colors[f](2) <<  std::endl;
+      */
     }
 
     out->close();
@@ -263,6 +281,35 @@ public:
    */
   int num_faces() {
     return static_cast<int>(this->faces.size());
+  }
+
+  /** \brief Add a color.
+   * \param[in] color RGB color to add
+   */
+  void add_color(Eigen::Vector3i& color) {
+    this->colors.push_back(color);
+  }
+
+  /** \brief Get the number of colors.
+   * \return number of colors
+   */
+  int num_colors() {
+    return static_cast<int>(this->colors.size());
+  }
+
+  /** \brief Return colors as an array.
+   * \param[in] color_array array in which colors are stored
+   */
+  void return_colors(Eigen::Tensor<int, 2, Eigen::RowMajor>& color_array) {
+    for (int f = 0; f < this->num_faces(); ++f) {
+      int r = colors[f](0);
+      int g = colors[f](1);
+      int b = colors[f](2);
+
+      for (int i = 0; i < 3; i++){
+        color_array(f,i) = this->colors[f](i);
+      }
+    }
   }
 
   /** \brief Translate the mesh.
@@ -381,6 +428,42 @@ public:
     }
   }
 
+  /** \brief Voxelize the given mesh into an occupancy grid preserving color.
+   * \param[out] occ volume to fill
+   */
+  void voxelize_occ_color(Eigen::Tensor<int, 3, Eigen::RowMajor>& occ, const VoxelizationMode &mode) {
+
+    int height = occ.dimension(0);
+    int width = occ.dimension(1);
+    int depth = occ.dimension(2);
+
+    #pragma omp parallel
+    {
+      #pragma omp for
+      for (int i = 0; i < height*width*depth; i++) {
+        int d = i%depth;
+        int w = (i/depth)%width;
+        int h = (i/depth)/width;
+
+        Eigen::Vector3f min(w, h, d);
+        Eigen::Vector3f max(w + 1, h + 1, d + 1);
+
+        for (int f = 0; f < this->num_faces(); ++f) {
+
+          Eigen::Vector3f v1 = this->vertices[this->faces[f](0)];
+          Eigen::Vector3f v2 = this->vertices[this->faces[f](1)];
+          Eigen::Vector3f v3 = this->vertices[this->faces[f](2)];
+
+          bool overlap = triangle_box_intersection(min, max, v1, v2, v3);
+          if (overlap) {
+            occ(h, w, d) = f;
+            break;
+          }
+        }
+      }
+    }
+  }
+
 private:
 
   /** \brief Vertices as (x,y,z)-vectors. */
@@ -388,6 +471,9 @@ private:
 
   /** \brief Faces as list of vertex indices. */
   std::vector<Eigen::Vector3i> faces;
+
+  /** \brief Colours as RGB vectors. */
+  std::vector<Eigen::Vector3i> colors;
 };
 
 /** \brief Write the given set of volumes to h5 file.
@@ -593,6 +679,7 @@ int main(int argc, char** argv) {
       ("width", boost::program_options::value<int>()->default_value(32), "width of volume, corresponding to x-axis (=right")
       ("depth", boost::program_options::value<int>()->default_value(32), "depth of volume, corresponding to z-axis (=forward)")
       ("center", boost::program_options::bool_switch()->default_value(false), "by default, the top-left-front corner is used for SDF computation; if instead the voxel centers should be used, set this flag")
+      ("color", boost::program_options::bool_switch()->default_value(false), "by default, color information is not kept after voxelization, set this flag if you want to voxelize with colors")
       ("output", boost::program_options::value<std::string>(), "output file, will be a HDF5 file containing either a N x C x height x width x depth tensor or a C x height x width x depth tensor, where N is the number of files and C=2 the number of channels, N is discarded if only a single file is processed; should have the .h5 extension");
 
   boost::program_options::positional_options_description positionals;
@@ -648,9 +735,14 @@ int main(int argc, char** argv) {
 
   std::cout << "Voxelizing into " << height << " x " << width << " x " << depth << " (height x width x depth)." << std::endl;
 
+  bool color = parameters["color"].as<bool>();
+  if (color == true){
+    std::cout << "Colors will be preserved." << std::endl;
+  }
+
   if (boost::filesystem::is_regular_file(input)) {
     Mesh mesh;
-    bool success = Mesh::from_off(input.string(), mesh);
+    bool success = Mesh::from_off(input.string(), mesh, color);
 
     if (!success) {
       std::cout << "Could not read " << input << "." << std::endl;
@@ -676,7 +768,31 @@ int main(int argc, char** argv) {
       Eigen::Tensor<int, 3, Eigen::RowMajor> tensor(height, width, depth);
       tensor.setZero();
 
-      mesh.voxelize_occ(tensor, voxelization_mode);
+      if (color == true){
+        mesh.voxelize_occ_color(tensor, voxelization_mode);
+
+        Eigen::Tensor<int, 2, Eigen::RowMajor> color_array(mesh.num_colors(), 3);
+        color_array.setZero();
+        mesh.return_colors(color_array);
+
+        int end_pos = input.string().find(".off");
+        std::string color_output = input.string();
+        color_output = color_output.erase(end_pos, end_pos+4) + "_color.h5";
+        
+        success = write_int_hdf5<2>(color_output, color_array);
+
+        if (!success) {
+          std::cout << "Could not write " << color_output << "." << std::endl;        
+          return 1;
+        }
+
+        std::cout << "Created color reference HDF5 file " << color_output << "." << std::endl;
+
+      }
+      else{
+        mesh.voxelize_occ(tensor, voxelization_mode);
+      }
+      
       std::cout << "Voxelized " << input << "." << std::endl;
 
       bool success = write_int_hdf5<3>(output.string(), tensor);
@@ -707,7 +823,7 @@ int main(int argc, char** argv) {
       int i = 0;
       for (std::map<int, boost::filesystem::path>::iterator it = input_files.begin(); it != input_files.end(); it++) {
         Mesh mesh;
-        bool success = Mesh::from_off(it->second.string(), mesh);
+        bool success = Mesh::from_off(it->second.string(), mesh, color);
 
         if (!success) {
           std::cout << "Could not read " << it->second << "." << std::endl;
@@ -736,7 +852,7 @@ int main(int argc, char** argv) {
       int i = 0;
       for (std::map<int, boost::filesystem::path>::iterator it = input_files.begin(); it != input_files.end(); it++) {
         Mesh mesh;
-        bool success = Mesh::from_off(it->second.string(), mesh);
+        bool success = Mesh::from_off(it->second.string(), mesh, color);
 
         if (!success) {
           std::cout << "Could not read " << it->second << "." << std::endl;
@@ -746,8 +862,33 @@ int main(int argc, char** argv) {
         Eigen::Tensor<int, 3, Eigen::RowMajor> slice(height, width, depth);
         slice.setZero();
 
-        mesh.voxelize_occ(slice, voxelization_mode);
-        tensor.chip(i, 0) = slice;
+        if (color == true){
+          mesh.voxelize_occ_color(slice, voxelization_mode);
+          tensor.chip(i, 0) = slice;
+          
+          Eigen::Tensor<int, 2, Eigen::RowMajor> color_array(mesh.num_colors(), 3);
+          color_array.setZero();
+
+          mesh.return_colors(color_array);
+
+          int end_pos = it->second.string().find(".off");
+          std::string color_output = it->second.string();
+          color_output = color_output.erase(end_pos, end_pos+4) + "_color.h5";
+
+          success = write_int_hdf5<2>(color_output, color_array);
+
+          if (!success) {
+          std::cout << "Could not write " << color_output << "." << std::endl;        
+            return 1;
+          }
+
+          std::cout << "Created color reference HDF5 file " << color_output << "." << std::endl;
+        }
+        else{
+          mesh.voxelize_occ(slice, voxelization_mode);
+          tensor.chip(i, 0) = slice;
+        }
+
         std::cout << "Voxelized " << it->second << " (" << (i + 1) << " of " << input_files.size() << ")." << std::endl;
 
         i++;
@@ -759,6 +900,7 @@ int main(int argc, char** argv) {
         std::cout << "Could not write " << output << "." << std::endl;
         return 1;
       }
+
     }
 
     std::cout << "Wrote " << output << "." << std::endl;

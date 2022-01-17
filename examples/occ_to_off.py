@@ -25,7 +25,7 @@ def read_hdf5(file, key = 'tensor'):
 
     return tensor
 
-def write_off(file, vertices, faces):
+def write_off(file, vertices, faces, colors):
     """
     Writes the given vertices and faces to OFF.
 
@@ -33,10 +33,13 @@ def write_off(file, vertices, faces):
     :type vertices: [(float)]
     :param faces: faces as tuples of (num_vertices, vertex_id_1, vertex_id_2, ...)
     :type faces: [(int)]
+    :param colors: RGB colors of faces as tuples of (R, G, B)
+    :type colors: [(int)]
     """
 
     num_vertices = len(vertices)
     num_faces = len(faces)
+    num_colors = len(colors)
 
     assert num_vertices > 0
     assert num_faces > 0
@@ -49,18 +52,37 @@ def write_off(file, vertices, faces):
             assert len(vertex) == 3, 'invalid vertex with %d dimensions found (%s)' % (len(vertex), file)
             fp.write(str(vertex[0]) + ' ' + str(vertex[1]) + ' ' + str(vertex[2]) + '\n')
 
-        for face in faces:
-            assert face[0] == 3, 'only triangular faces supported (%s)' % file
-            assert len(face) == 4, 'faces need to have 3 vertices, but found %d (%s)' % (len(face), file)
+        if num_colors == 0:
+            for face in faces:
+                assert face[0] == 3, 'only triangular faces supported (%s)' % file
+                assert len(face) == 4, 'faces need to have 3 vertices, but found %d (%s)' % (len(face), file)
 
-            for i in range(len(face)):
-                assert face[i] >= 0 and face[i] < num_vertices, 'invalid vertex index %d (of %d vertices) (%s)' % (face[i], num_vertices, file)
+                for i in range(len(face)):
+                    assert face[i] >= 0 and face[i] < num_vertices, 'invalid vertex index %d (of %d vertices) (%s)' % (face[i], num_vertices, file)
 
-                fp.write(str(face[i]))
-                if i < len(face) - 1:
+                    fp.write(str(face[i]))
+                    if i < len(face) - 1:
+                        fp.write(' ')
+                fp.write('\n')
+
+        else:
+            for fi in range(num_faces):
+                assert faces[fi][0] == 3, 'only triangular faces supported (%s)' % file
+                assert len(faces[fi]) == 4, 'faces need to have 3 vertices, but found %d (%s)' % (len(faces[fi]), file)
+
+                for vi in range(len(faces[fi])):
+                    assert faces[fi][vi] >= 0 and faces[fi][vi] < num_vertices, 'invalid vertex index %d (of %d vertices) (%s)' % (faces[fi][vi], num_vertices, file)
+
+                    fp.write(str(faces[fi][vi]))
                     fp.write(' ')
+                
+                for cc in range(len(colors[fi])):
 
-            fp.write('\n')
+                    fp.write(str(colors[fi][cc]))
+                    if cc < len(colors[fi]) - 1:
+                        fp.write(' ')
+
+                fp.write('\n')
 
         # add empty line to be sure
         fp.write('\n')
@@ -70,14 +92,16 @@ class Mesh:
     Represents a mesh.
     """
 
-    def __init__(self, vertices = [[]], faces = [[]]):
+    def __init__(self, vertices = [[]], faces = [[]], colors = [[]]):
         """
         Construct a mesh from vertices and faces.
 
         :param vertices: list of vertices, or numpy array
         :type vertices: [[float]] or numpy.ndarray
         :param faces: list of faces or numpy array, i.e. the indices of the corresponding vertices per triangular face
-        :type faces: [[int]] fo rnumpy.ndarray
+        :type faces: [[int]] or numpy.ndarray
+        :param colors: list of colors corresponding to faces, or numpy array
+        :type colors: [[int]] or numpy.ndarray
         """
 
         self.vertices = np.array(vertices, dtype = float)
@@ -86,8 +110,12 @@ class Mesh:
         self.faces = np.array(faces, dtype = int)
         """ (numpy.ndarray) Faces. """
 
+        self.colors = np.array(colors, dtype = int)
+        """ (numpy.ndarray) Colors. """
+
         assert self.vertices.shape[1] == 3
         assert self.faces.shape[1] == 3
+        #assert self.colors.shape[1] == 3
 
     def to_off(self, filepath):
         """
@@ -100,23 +128,28 @@ class Mesh:
         faces = np.ones((self.faces.shape[0], 4), dtype = int)*3
         faces[:, 1:4] = self.faces[:, :]
 
-        write_off(filepath, self.vertices.tolist(), faces.tolist())
+        write_off(filepath, self.vertices.tolist(), faces.tolist(), self.colors.tolist())
 
     @staticmethod
-    def from_volume(volume):
+    def from_volume(volume, colorarray=None):
         """
         Create a mesh from a voxel grid/volume.
 
         :param volume: volume
         :type volume: numpy.ndarray
+        :param colorarray: color info preserved in voxelization step
+        :type colorarray: numpy.ndarray
         :return: mesh
         :rtype: Mesh
         """
 
         vertices = []
         faces = []
+        colors = []
 
         xx, yy, zz = np.where(volume > 0.5)
+        face_ids = volume[:][np.where(volume > 0.5)]
+        face_ids = face_ids.astype('int32')
 
         for i in range(len(xx)):
             v000 = (yy[i], xx[i], zz[i])                # 0
@@ -163,14 +196,20 @@ class Mesh:
             faces.append(f10)
             faces.append(f11)
             faces.append(f12)
-
-        return Mesh(vertices, faces)
+            
+            if type(colorarray) != None.__class__:
+                c = colorarray[face_ids[i]]
+                for i in range(12): #apply same color for all 12 triangles of the cube
+                    colors.append(c)
+            
+        return Mesh(vertices, faces, colors)
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Convert occupancy grids to meshes.')
     parser.add_argument('input', type=str, help='The input HDF5 file.')
     parser.add_argument('output', type=str, help='The output directory for OFF files.')
+    parser.add_argument('--color', type=str, nargs='*', default='None', help='If color information was preserved in voxelization, the hdf5 file (or files if a directory was input) can be input here')
 
     args = parser.parse_args()
     if not os.path.exists(args.input):
@@ -187,8 +226,17 @@ if __name__ == '__main__':
     if len(occupancy.shape) < 4:
         occupancy = np.expand_dims(occupancy, axis=0)
 
+    if args.color != 'None':
+        assert occupancy.shape[0] == len(args.color), 'input color files (%d) do not equal number of meshes (%d)' % (len(args.color), occupancy.shape[0])
+        color_list = []
+        for color_file in args.color: 
+            color_list.append(read_hdf5(color_file))
+
     for n in range(occupancy.shape[0]):
-        mesh = Mesh.from_volume(occupancy[n])
+        if args.color != 'None':
+            mesh = Mesh.from_volume(occupancy[n], color_list[n])
+        else:
+            mesh = Mesh.from_volume(occupancy[n])
 
         off_file = os.path.join(args.output, '%d.off' % n)
         mesh.to_off(off_file)

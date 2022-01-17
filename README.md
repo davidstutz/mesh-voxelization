@@ -58,6 +58,8 @@ C++ and Python utilities for reading this
 format are provided; as well as C++ and Python utilities for the
 used (triangular) mesh format: [OFF](http://segeval.cs.princeton.edu/public/off_format.html).
 
+Color of the original mesh can be preserved in ocupancy grid mode.
+
 ## Installation
 
 Requirements for C++ tool:
@@ -129,6 +131,8 @@ This can be accomplished using:
 
     python ../examples/scale_off.py ../examples/raw/ ../examples/input/
 
+If your file contains color information of faces, set `--color=True`.
+
 The meshes can then be voxelized; for details, check the `--help` option:
 
     $ ../bin/voxelize --help
@@ -145,6 +149,9 @@ The meshes can then be voxelized; for details, check the `--help` option:
       --center              by default, the top-left-front corner is used for SDF 
                             computation; if instead the voxel centers should be 
                             used, set this flag
+      --color               by default, color information is not kept after 
+                            voxelization, set this flag if you want to voxelize with 
+                            colors
       --output arg          output file, will be a HDF5 file containing either a N 
                             x C x height x width x depth tensor or a C x height x 
                             width x depth tensor, where N is the number of files 
@@ -157,6 +164,14 @@ indicates that the voxel's centers are to be used for SDF computation instead of
 corners (by default); this has influence on the used marching cubes implementation.
 The output will be a `N x H x W x D` tensor as HDF5 file containing the occupancy
 grids or SDFs per mesh.
+
+When `--color` flag is set, an additional file (or files) `[int]_color.h5` with the original
+mesh face colors is created in the input directory. Instead of occupancy grid being filled with
+0 or 1 it will consist of 0s and face IDs. When converting voxelized mesh back to OFF file as
+in `examples/occ_to_off.py`, these face IDs can be used to point to the corresponding color in the
+color file (or files) which is then used for all 12 triangular faces of the voxel. Color file(s)
+should be input when calling `examples/occ_to_off.py` with `--color` argument, multiple files can
+be listed but ordering is important.
 
 **Note:** The _triangular_ meshes of the input OFF files should be watertight. This can, together
 with a simplification of the meshes, be acheived using Andreas Geiger's

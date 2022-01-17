@@ -3,7 +3,7 @@ import math
 import argparse
 import numpy as np
 
-def write_off(file, vertices, faces):
+def write_off(file, vertices, faces, colors):
     """
     Writes the given vertices and faces to OFF.
 
@@ -15,6 +15,7 @@ def write_off(file, vertices, faces):
 
     num_vertices = len(vertices)
     num_faces = len(faces)
+    num_colors = len(colors)
 
     assert num_vertices > 0
     assert num_faces > 0
@@ -27,30 +28,51 @@ def write_off(file, vertices, faces):
             assert len(vertex) == 3, 'invalid vertex with %d dimensions found (%s)' % (len(vertex), file)
             fp.write(str(vertex[0]) + ' ' + str(vertex[1]) + ' ' + str(vertex[2]) + '\n')
 
-        for face in faces:
-            assert face[0] == 3, 'only triangular faces supported (%s)' % file
-            assert len(face) == 4, 'faces need to have 3 vertices, but found %d (%s)' % (len(face), file)
+        if num_colors == 0:
+            for face in faces:
+                assert face[0] == 3, 'only triangular faces supported (%s)' % file
+                assert len(face) == 4, 'faces need to have 3 vertices, but found %d (%s)' % (len(face), file)
 
-            for i in range(len(face)):
-                assert face[i] >= 0 and face[i] < num_vertices, 'invalid vertex index %d (of %d vertices) (%s)' % (face[i], num_vertices, file)
+                for i in range(len(face)):
+                    assert face[i] >= 0 and face[i] < num_vertices, 'invalid vertex index %d (of %d vertices) (%s)' % (face[i], num_vertices, file)
 
-                fp.write(str(face[i]))
-                if i < len(face) - 1:
+                    fp.write(str(face[i]))
+                    if i < len(face) - 1:
+                        fp.write(' ')
+                fp.write('\n')
+
+        else:
+            for fi in range(num_faces):
+                assert faces[fi][0] == 3, 'only triangular faces supported (%s)' % file
+                assert len(faces[fi]) == 4, 'faces need to have 3 vertices, but found %d (%s)' % (len(faces[fi]), file)
+
+                for vi in range(len(faces[fi])):
+                    assert faces[fi][vi] >= 0 and faces[fi][vi] < num_vertices, 'invalid vertex index %d (of %d vertices) (%s)' % (faces[fi][vi], num_vertices, file)
+
+                    fp.write(str(faces[fi][vi]))
                     fp.write(' ')
+                
+                for cc in range(len(colors[fi])):
 
-            fp.write('\n')
+                    fp.write(str(colors[fi][cc]))
+                    if cc < len(colors[fi]) - 1:
+                        fp.write(' ')
+
+                fp.write('\n')
 
         # add empty line to be sure
         fp.write('\n')
 
-def read_off(file):
+def read_off(file, color=False):
     """
     Reads vertices and faces from an off file.
 
     :param file: path to file to read
     :type file: str
-    :return: vertices and faces as lists of tuples
-    :rtype: [(float)], [(int)]
+    :param color: if file contains color info
+    :type color: bool
+    :return: vertices and faces (and colors if true) as lists of tuples
+    :rtype: [(float)], [(int)], [(int)]
     """
 
     assert os.path.exists(file), 'file %s not found' % file
@@ -98,6 +120,7 @@ def read_off(file):
             vertices.append(vertex)
 
         faces = []
+        colors = []    
         for i in range(num_faces):
             face = lines[start_index + num_vertices + i].split(' ')
             face = [index.strip() for index in face if index != '']
@@ -108,23 +131,33 @@ def read_off(file):
 
             face = [int(index) for index in face]
 
-            assert face[0] == len(face) - 1, 'face should have %d vertices but as %d (%s)' % (face[0], len(face) - 1, file)
-            assert face[0] == 3, 'only triangular meshes supported (%s)' % file
-            for index in face:
-                assert index >= 0 and index < num_vertices, 'vertex %d (of %d vertices) does not exist (%s)' % (index, num_vertices, file)
+            if color == False:
+                face[0] == len(face) - 1, 'face should have %d vertices but has %d (%s)' % (face[0], len(face) - 1, file)
+                for index in face:
+                    assert index >= 0 and index < num_vertices, 'vertex %d (of %d vertices) does not exist (%s)' % (index, num_vertices, file)
+            else: 
+                assert face[0] == len(face) - 4, 'face should have %d vertices but has %d (%s)' % (face[0], len(face) - 1, file)
+                for index in range(len(face)-3):
+                    assert index >= 0 and index < num_vertices, 'vertex %d (of %d vertices) does not exist (%s)' % (index, num_vertices, file)
+                for cc in range(len(face)-3,len(face)):
+                    assert cc>=0 and cc<=255, 'rgb color value %d is incorrect, check face no. %d (%s)' % (cc, i, file)
+                rgb = face[4:]
+                face = face[:4]
+                colors.append(rgb)
 
+            assert face[0] == 3, 'only triangular meshes supported (%s)' % file
             assert len(face) > 1
 
             faces.append(face)
-
-        return vertices, faces
+        
+    return vertices, faces, colors
 
 class Mesh:
     """
     Represents a mesh.
     """
 
-    def __init__(self, vertices = [[]], faces = [[]]):
+    def __init__(self, vertices = [[]], faces = [[]], colors = [[]]):
         """
         Construct a mesh from vertices and faces.
 
@@ -132,6 +165,8 @@ class Mesh:
         :type vertices: [[float]] or numpy.ndarray
         :param faces: list of faces or numpy array, i.e. the indices of the corresponding vertices per triangular face
         :type faces: [[int]] fo rnumpy.ndarray
+        :param colors: list RGB colors corresponding to face
+        :type colors: [[int]] fo rnumpy.ndarray
         """
 
         self.vertices = np.array(vertices, dtype = float)
@@ -140,8 +175,13 @@ class Mesh:
         self.faces = np.array(faces, dtype = int)
         """ (numpy.ndarray) Faces. """
 
+        self.colors = np.array(colors, dtype = int)
+        """ (numpy.ndarray) RGB colors. """
+
         assert self.vertices.shape[1] == 3
         assert self.faces.shape[1] == 3
+        if self.colors.size > 0:     
+            assert self.colors.shape[0] == self.faces.shape[0], "number of faces (%d) does not equal number of colors (%d)" % (self.faces.shape[2], self.colors.shape[2]) 
 
     def extents(self):
         """
@@ -187,24 +227,26 @@ class Mesh:
             self.vertices[:, i] += translation[i]
 
     @staticmethod
-    def from_off(filepath):
+    def from_off(filepath, color):
         """
         Read a mesh from OFF.
 
         :param filepath: path to OFF file
         :type filepath: str
+        :param color: whether file has color information
+        :type color: bool
         :return: mesh
         :rtype: Mesh
         """
 
-        vertices, faces = read_off(filepath)
+        vertices, faces, colors = read_off(filepath, color)
 
         real_faces = []
         for face in faces:
             assert len(face) == 4
             real_faces.append([face[1], face[2], face[3]])
 
-        return Mesh(vertices, real_faces)
+        return Mesh(vertices, real_faces, colors)
 
     def to_off(self, filepath):
         """
@@ -212,12 +254,14 @@ class Mesh:
 
         :param filepath: path to write file to
         :type filepath: str
+        :param color: whether to include color information
+        :type color: bool
         """
 
         faces = np.ones((self.faces.shape[0], 4), dtype = int)*3
         faces[:, 1:4] = self.faces[:, :]
 
-        write_off(filepath, self.vertices.tolist(), faces.tolist())
+        write_off(filepath, self.vertices.tolist(), faces.tolist(), self.colors.tolist())
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert OFF to OBJ.')
@@ -227,6 +271,7 @@ if __name__ == '__main__':
     parser.add_argument('--height', type=int, default=32, help='Height to scale to.')
     parser.add_argument('--width', type=int, default=32, help='Width to scale to.')
     parser.add_argument('--depth', type=int, default=32, help='Depth to scale to.')
+    parser.add_argument('--color', type=bool, default=False, help='Whether to keep/use color information in off file, default is False')
 
     args = parser.parse_args()
     if not os.path.exists(args.input):
@@ -244,7 +289,7 @@ if __name__ == '__main__':
 
     for filename in os.listdir(args.input):
         filepath = os.path.join(args.input, filename)
-        mesh = Mesh.from_off(filepath)
+        mesh = Mesh.from_off(filepath, args.color)
 
         # Get extents of model.
         min, max = mesh.extents()
