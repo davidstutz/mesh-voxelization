@@ -150,6 +150,9 @@ class Mesh:
         xx, yy, zz = np.where(volume > 0.5)
         face_ids = volume[:][np.where(volume > 0.5)]
         face_ids = face_ids.astype('int32')
+        if type(colorarray) != None.__class__:
+            num_faces = len(colorarray) #number of inital mesh faces should be equal to the color array length
+            face_ids[face_ids == num_faces] = 0 #set changed face 0 back to zero
 
         for i in range(len(xx)):
             v000 = (yy[i], xx[i], zz[i])                # 0

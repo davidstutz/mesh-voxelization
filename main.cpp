@@ -456,6 +456,10 @@ public:
 
           bool overlap = triangle_box_intersection(min, max, v1, v2, v3);
           if (overlap) {
+            if (f == 0){ // since 0 are treated as not voxelized space, need to deal with face index 0
+              occ(h, w, d) = num_faces(); // face 0 has now a new face no. that needs to be taken into account when converting back to off
+              break;
+            } 
             occ(h, w, d) = f;
             break;
           }
